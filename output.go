@@ -1,17 +1,28 @@
 package timescaledb
 
-import "github.com/grafana/k6/stats"
+import (
+	"go.k6.io/k6/output"
+	"go.k6.io/k6/stats"
+)
 
-type Output struct{}
-
-func (o *Output) Description() string{
-	return ""
+func init() {
+	output.RegisterExtension("timescaledb", func(params output.Params) (output.Output, error) {
+		return &Output{}, nil
+	})
 }
 
-func (o *Output) Start() error{
+type Output struct {
+	Config config
+}
+
+func (o *Output) Description() string {
+	return "Output to TimescaleDB"
+}
+
+func (o *Output) Start() error {
 	return nil
 }
 
 func (o *Output) AddMetricSamples(samples []stats.SampleContainer) {}
 
-func (o *Output) Stop() error {return nil}
+func (o *Output) Stop() error { return nil }
