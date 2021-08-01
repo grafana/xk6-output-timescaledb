@@ -9,6 +9,9 @@ require (
 	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/lib/pq v1.10.2 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
+	github.com/sirupsen/logrus v1.8.1
 	go.k6.io/k6 v0.33.0
 	gopkg.in/guregu/null.v3 v3.5.0
 )
+
+replace go.k6.io/k6 => /Users/shirley/go/src/github.com/grafana/k6
