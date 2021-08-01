@@ -32,8 +32,7 @@ type dbThreshold struct {
 	threshold *stats.Threshold
 }
 
-// TimescaleDB database schema expected by this collector
-const databaseSchema = `CREATE TABLE IF NOT EXISTS samples (
+const expectedDatabaseSchema = `CREATE TABLE IF NOT EXISTS samples (
 		ts timestamptz NOT NULL DEFAULT current_timestamp,
 		metric varchar(128) NOT NULL,
 		tags jsonb,
@@ -54,6 +53,31 @@ const databaseSchema = `CREATE TABLE IF NOT EXISTS samples (
 	CREATE INDEX IF NOT EXISTS idx_thresholds_ts ON thresholds (ts DESC);`
 
 func (o *Output) Start() error {
+	conn, err := o.Pool.Acquire()
+	if err != nil {
+		o.logger.WithError(err).Error("TimescaleDB: Couldn't acquire connection")
+	}
+	_, err = conn.Exec("CREATE DATABASE " + o.Config.db.String)
+	if err != nil {
+		o.logger.WithError(err).Debug("TimescaleDB: Couldn't create database; most likely harmless")
+	}
+	_, err = conn.Exec(expectedDatabaseSchema)
+	if err != nil {
+		o.logger.WithError(err).Debug("TimescaleDB: Couldn't create database schema; most likely harmless")
+	}
+
+	for name, t := range o.thresholds {
+		for _, threshold := range t {
+			metric, _, tags := stats.ParseThresholdName(name)
+			err = conn.QueryRow("INSERT INTO thresholds (metric, tags, threshold, abort_on_fail, delay_abort_eval, last_failed) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+				metric, tags, threshold.threshold.Source, threshold.threshold.AbortOnFail, threshold.threshold.AbortGracePeriod.String(), threshold.threshold.LastFailed).Scan(&threshold.id)
+			if err != nil {
+				o.logger.WithError(err).Debug("TimescaleDB: Failed to insert threshold")
+			}
+		}
+	}
+
+	o.Pool.Release(conn)
 	return nil
 }
 
