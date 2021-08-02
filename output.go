@@ -2,6 +2,7 @@ package timescaledb
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgtype"
@@ -14,9 +15,40 @@ import (
 )
 
 func init() {
-	output.RegisterExtension("timescaledb", func(params output.Params) (output.Output, error) {
-		return &Output{}, nil
-	})
+	output.RegisterExtension("timescaledb", newOutput)
+}
+
+func newOutput(params output.Params) (output.Output, error) {
+	confFromArg, err := parseURL(params.ConfigArgument)
+	if err != nil {
+		return nil, fmt.Errorf("TimescaleDB: Unable to parse config: %w", err)
+	}
+	if confFromArg.ConcurrentWrites.Int64 <= 0 {
+		return nil, fmt.Errorf("TimescaleDB's ConcurrentWrites must be a positive number")
+	}
+
+	pconf, err := pgxpool.ParseConfig(params.ConfigArgument)
+	if err != nil {
+		return nil, fmt.Errorf("TimescaleDB: Unable to parse config: %w", err)
+	}
+
+	pool, err := pgxpool.ConnectConfig(context.Background(), pconf)
+	if err != nil {
+		return nil, fmt.Errorf("TimescaleDB: Unable to create connection pool: %w", err)
+	}
+
+	thresholds := make(map[string][]*dbThreshold)
+	for name, t := range params.ScriptOptions.Thresholds {
+		for _, threshold := range t.Thresholds {
+			thresholds[name] = append(thresholds[name], &dbThreshold{id: -1, threshold: threshold})
+		}
+	}
+
+	return &Output{
+		Pool:       pool,
+		Config:     confFromArg,
+		thresholds: thresholds,
+	}, nil
 }
 
 var _ output.Output = &Output{}
