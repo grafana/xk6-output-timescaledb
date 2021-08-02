@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgtype"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/sirupsen/logrus"
 
 	"go.k6.io/k6/output"
@@ -23,7 +24,7 @@ var _ output.Output = &Output{}
 type Output struct {
 	output.SampleBuffer
 	periodicFlusher *output.PeriodicFlusher
-	Pool            *pgx.ConnPool
+	Pool            *pgxpool.Pool
 	Config          config
 
 	thresholds map[string][]*dbThreshold
@@ -61,15 +62,15 @@ const expectedDatabaseSchema = `CREATE TABLE IF NOT EXISTS samples (
 	CREATE INDEX IF NOT EXISTS idx_thresholds_ts ON thresholds (ts DESC);`
 
 func (o *Output) Start() error {
-	conn, err := o.Pool.Acquire()
+	conn, err := o.Pool.Acquire(context.Background())
 	if err != nil {
 		o.logger.WithError(err).Error("TimescaleDB: Couldn't acquire connection")
 	}
-	_, err = conn.Exec("CREATE DATABASE " + o.Config.db.String)
+	_, err = conn.Exec(context.Background(), "CREATE DATABASE "+o.Config.db.String)
 	if err != nil {
 		o.logger.WithError(err).Debug("TimescaleDB: Couldn't create database; most likely harmless")
 	}
-	_, err = conn.Exec(expectedDatabaseSchema)
+	_, err = conn.Exec(context.Background(), expectedDatabaseSchema)
 	if err != nil {
 		o.logger.WithError(err).Debug("TimescaleDB: Couldn't create database schema; most likely harmless")
 	}
@@ -77,8 +78,10 @@ func (o *Output) Start() error {
 	for name, t := range o.thresholds {
 		for _, threshold := range t {
 			metric, _, tags := stats.ParseThresholdName(name)
-			err = conn.QueryRow("INSERT INTO thresholds (metric, tags, threshold, abort_on_fail, delay_abort_eval, last_failed) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-				metric, tags, threshold.threshold.Source, threshold.threshold.AbortOnFail, threshold.threshold.AbortGracePeriod.String(), threshold.threshold.LastFailed).Scan(&threshold.id)
+			err = conn.QueryRow(context.Background(),
+				"INSERT INTO thresholds (metric, tags, threshold, abort_on_fail, delay_abort_eval, last_failed) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+				metric, tags, threshold.threshold.Source, threshold.threshold.AbortOnFail, threshold.threshold.AbortGracePeriod.String(),
+				threshold.threshold.LastFailed).Scan(&threshold.id)
 			if err != nil {
 				o.logger.WithError(err).Debug("TimescaleDB: Failed to insert threshold")
 			}
@@ -92,8 +95,8 @@ func (o *Output) Start() error {
 
 	o.logger.Debug("TimescaleDB: Running!")
 	o.periodicFlusher = pf
+	conn.Release()
 
-	o.Pool.Release(conn)
 	return nil
 }
 
@@ -105,7 +108,7 @@ func (o *Output) commit() {
 		o.logger.WithField("samples", len(samples)).Debug("TimescaleDB: Writing...")
 
 		start := time.Now()
-		batch := o.Pool.BeginBatch()
+		batch := pgx.Batch{}
 		for _, s := range samples {
 			tags := s.Tags.CloneTags()
 			batch.Queue("INSERT INTO samples (ts, metric, value, tags) VALUES ($1, $2, $3, $4)",
@@ -123,18 +126,22 @@ func (o *Output) commit() {
 			}
 		}
 
-		if err := batch.Send(context.Background(), nil); err != nil {
-			o.logger.WithError(err).Error("TimescaleDB: Couldn't send batch of inserts")
-		}
-		if err := batch.Close(); err != nil {
-			o.logger.WithError(err).Error("TimescaleDB: Couldn't close batch and release connection")
+		conn, err := o.Pool.Acquire(context.Background())
+		if err != nil {
+			logrus.WithError(err).Error("TimescaleDB: Couldn't acquire connection to write samples")
+			return
 		}
 
+		br := conn.SendBatch(context.Background(), nil)
+		if _, err := br.Exec(); err != nil {
+			o.logger.WithError(err).Error("TimescaleDB: Couldn't write samples and update thresholds")
+		}
+
+		conn.Release()
 		t := time.Since(start)
 		o.logger.WithField("t", t).Debug("TimescaleDB: Batch written!")
 	}
 }
-
 func (o *Output) Stop() error {
 	o.logger.Debug("Stopping...")
 	defer o.logger.Debug("Stopped!")
