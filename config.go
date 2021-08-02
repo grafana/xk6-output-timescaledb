@@ -2,54 +2,33 @@ package timescaledb
 
 import (
 	"fmt"
-	"net/url"
+	"os"
 	"strconv"
-	"strings"
-
-	"go.k6.io/k6/lib/types"
-	"gopkg.in/guregu/null.v3"
+	"time"
 )
 
 type config struct {
 	// Connection URL in the form specified in the libpq docs,
 	// see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING):
 	// postgresql://[user[:password]@][netloc][:port][,...][/dbname][?param1=value1&...]
-	URL              null.String        `json:"addr" envconfig:"K6_TIMESCALEDB_URL"`
-	PushInterval     types.NullDuration `json:"pushInterval,omitempty" envconfig:"K6_TIMESCALEDB_PUSH_INTERVAL"`
-	ConcurrentWrites null.Int           `json:"concurrentWrites,omitempty" envconfig:"K6_TIMESCALEDB_CONCURRENT_WRITES"`
-
-	addr null.String
-	db   null.String
+	URL              string        `json:"addr" envconfig:"K6_TIMESCALEDB_URL"`
+	PushInterval     time.Duration `json:"pushInterval,omitempty" envconfig:"K6_TIMESCALEDB_PUSH_INTERVAL"`
+	ConcurrentWrites int           `json:"concurrentWrites,omitempty" envconfig:"K6_TIMESCALEDB_CONCURRENT_WRITES"`
 }
 
-func parseURL(text string) (config, error) {
-	u, err := url.Parse(text)
+func getEnvConfig() (config, error) {
+	pushInterval, err := time.ParseDuration(os.Getenv("K6_TIMESCALEDB_PUSH_INTERVAL"))
 	if err != nil {
-		return config{}, err
+		return config{}, fmt.Errorf("invalid K6_TIMESCALEDB_PUSH_INTERVAL: %w", err)
 	}
-	var c config
-	c.URL = null.NewString(u.String(), true)
-	if u.Host != "" {
-		c.addr = null.StringFrom(u.Scheme + "://" + u.Host)
+	concurrentWrites, err := strconv.Atoi(os.Getenv("K6_TIMESCALEDB_CONCURRENT_WRITES"))
+	if err != nil {
+		return config{}, fmt.Errorf("invalid K6_TIMESCALEDB_CONCURRENT_WRITES: %w", err)
 	}
-	if db := strings.TrimPrefix(u.Path, "/"); db != "" {
-		c.db = null.StringFrom(db)
-	}
-	for k, vs := range u.Query() {
-		switch k {
-		case "pushInterval":
-			if err := c.PushInterval.UnmarshalText([]byte(vs[0])); err != nil {
-				return config{}, err
-			}
-		case "concurrentWrites":
-			writes, err := strconv.Atoi(vs[0])
-			if err != nil {
-				return c, err
-			}
-			c.ConcurrentWrites = null.IntFrom(int64(writes))
-		default:
-			return config{}, fmt.Errorf("unknown query parameter: %s", k)
-		}
-	}
-	return c, err
+
+	return config{
+		URL:              os.Getenv("K6_TIMESCALEDB_URL"),
+		PushInterval:     pushInterval,
+		ConcurrentWrites: concurrentWrites,
+	}, nil
 }

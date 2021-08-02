@@ -19,12 +19,13 @@ func init() {
 }
 
 func newOutput(params output.Params) (output.Output, error) {
-	confFromArg, err := parseURL(params.ConfigArgument)
+	config, err := getEnvConfig()
 	if err != nil {
-		return nil, fmt.Errorf("TimescaleDB: Unable to parse config: %w", err)
+		return nil, fmt.Errorf("problem parsing environmental variables: %w", err)
 	}
-	if confFromArg.ConcurrentWrites.Int64 <= 0 {
-		return nil, fmt.Errorf("TimescaleDB's ConcurrentWrites must be a positive number")
+
+	if config.ConcurrentWrites <= 0 {
+		return nil, fmt.Errorf("concurrent writes must be a positive number")
 	}
 
 	pconf, err := pgxpool.ParseConfig(params.ConfigArgument)
@@ -46,7 +47,7 @@ func newOutput(params output.Params) (output.Output, error) {
 
 	return &Output{
 		Pool:       pool,
-		Config:     confFromArg,
+		Config:     config,
 		thresholds: thresholds,
 	}, nil
 }
@@ -98,7 +99,7 @@ func (o *Output) Start() error {
 	if err != nil {
 		o.logger.WithError(err).Error("TimescaleDB: Couldn't acquire connection")
 	}
-	_, err = conn.Exec(context.Background(), "CREATE DATABASE "+o.Config.db.String)
+	_, err = conn.Exec(context.Background(), "CREATE DATABASE myk6timescaleDB")
 	if err != nil {
 		o.logger.WithError(err).Debug("TimescaleDB: Couldn't create database; most likely harmless")
 	}
@@ -120,7 +121,7 @@ func (o *Output) Start() error {
 		}
 	}
 
-	pf, err := output.NewPeriodicFlusher(time.Duration(o.Config.PushInterval.Duration), o.commit)
+	pf, err := output.NewPeriodicFlusher(o.Config.PushInterval, o.commit)
 	if err != nil {
 		return err
 	}
