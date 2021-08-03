@@ -20,9 +20,9 @@ func init() {
 }
 
 func newOutput(params output.Params) (output.Output, error) {
-	config, err := getEnvConfig()
+	config, err := getEnvConfig(params.Environment)
 	if err != nil {
-		return nil, fmt.Errorf("problem parsing environmental variables: %w", err)
+		return nil, fmt.Errorf("problem parsing config: %w", err)
 	}
 
 	if config.ConcurrentWrites <= 0 {
