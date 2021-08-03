@@ -121,7 +121,6 @@ func (o *Output) Start() error {
 				threshold.threshold.LastFailed).Scan(&threshold.id)
 			if err != nil {
 				o.logger.WithError(err).Debug("TimescaleDB: Failed to insert threshold")
-				panic(err)
 			}
 		}
 	}
@@ -171,7 +170,6 @@ func (o *Output) commit() {
 		br := conn.SendBatch(context.Background(), batch)
 		if _, err := br.Exec(); err != nil {
 			o.logger.WithError(err).Error("TimescaleDB: Couldn't write samples and update thresholds")
-			panic(err)
 		}
 
 		conn.Release()
