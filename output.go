@@ -3,6 +3,7 @@ package timescaledb
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgtype"
@@ -110,7 +111,7 @@ func (o *Output) Start() error {
 
 	for name, t := range o.thresholds {
 		for _, threshold := range t {
-			metric, _, tags := stats.ParseThresholdName(name)
+			metric, _, tags := ParseThresholdName(name)
 			err = conn.QueryRow(context.Background(),
 				"INSERT INTO thresholds (metric, tags, threshold, abort_on_fail, delay_abort_eval, last_failed) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
 				metric, tags, threshold.threshold.Source, threshold.threshold.AbortOnFail, threshold.threshold.AbortGracePeriod.String(),
@@ -181,4 +182,30 @@ func (o *Output) Stop() error {
 	o.periodicFlusher.Stop()
 	o.Pool.Close()
 	return nil
+}
+
+func ParseThresholdName(name string) (string, string, map[string]string) {
+	parts := strings.SplitN(strings.TrimSuffix(name, "}"), "{", 2)
+	if len(parts) == 1 {
+		return parts[0], "", make(map[string]string, 0)
+	}
+
+	kvs := strings.Split(parts[1], ",")
+	tags := make(map[string]string, len(kvs))
+	for _, kv := range kvs {
+		if kv == "" {
+			continue
+		}
+		parts := strings.SplitN(kv, ":", 2)
+
+		key := strings.TrimSpace(strings.Trim(parts[0], `"'`))
+		if len(parts) != 2 {
+			tags[key] = ""
+			continue
+		}
+
+		value := strings.TrimSpace(strings.Trim(parts[1], `"'`))
+		tags[key] = value
+	}
+	return parts[0], parts[1], tags
 }
