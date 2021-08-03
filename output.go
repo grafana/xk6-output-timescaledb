@@ -29,7 +29,7 @@ func newOutput(params output.Params) (output.Output, error) {
 		return nil, fmt.Errorf("concurrent writes must be a positive number")
 	}
 
-	pconf, err := pgxpool.ParseConfig(params.ConfigArgument)
+	pconf, err := pgxpool.ParseConfig(config.URL)
 	if err != nil {
 		return nil, fmt.Errorf("TimescaleDB: Unable to parse config: %w", err)
 	}
@@ -50,6 +50,9 @@ func newOutput(params output.Params) (output.Output, error) {
 		Pool:       pool,
 		Config:     config,
 		thresholds: thresholds,
+		logger: params.Logger.WithFields(logrus.Fields{
+			"output": "TimescaleDB",
+		}),
 	}, nil
 }
 
@@ -67,7 +70,7 @@ type Output struct {
 }
 
 func (o *Output) Description() string {
-	return "Output to TimescaleDB"
+	return "TimescaleDB"
 }
 
 type dbThreshold struct {
@@ -111,13 +114,14 @@ func (o *Output) Start() error {
 
 	for name, t := range o.thresholds {
 		for _, threshold := range t {
-			metric, _, tags := ParseThresholdName(name)
+			metric, _, tags := parseThresholdName(name)
 			err = conn.QueryRow(context.Background(),
 				"INSERT INTO thresholds (metric, tags, threshold, abort_on_fail, delay_abort_eval, last_failed) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
 				metric, tags, threshold.threshold.Source, threshold.threshold.AbortOnFail, threshold.threshold.AbortGracePeriod.String(),
 				threshold.threshold.LastFailed).Scan(&threshold.id)
 			if err != nil {
 				o.logger.WithError(err).Debug("TimescaleDB: Failed to insert threshold")
+				panic(err)
 			}
 		}
 	}
@@ -142,13 +146,11 @@ func (o *Output) commit() {
 		o.logger.WithField("samples", len(samples)).Debug("TimescaleDB: Writing...")
 
 		start := time.Now()
-		batch := pgx.Batch{}
+		batch := &pgx.Batch{}
 		for _, s := range samples {
 			tags := s.Tags.CloneTags()
 			batch.Queue("INSERT INTO samples (ts, metric, value, tags) VALUES ($1, $2, $3, $4)",
-				[]interface{}{s.Time, s.Metric.Name, s.Value, tags},
-				[]pgtype.OID{pgtype.TimestamptzOID, pgtype.VarcharOID, pgtype.Float4OID, pgtype.JSONBOID},
-				nil)
+				s.Time, s.Metric.Name, s.Value, tags)
 		}
 
 		for _, t := range o.thresholds {
@@ -166,9 +168,10 @@ func (o *Output) commit() {
 			return
 		}
 
-		br := conn.SendBatch(context.Background(), nil)
+		br := conn.SendBatch(context.Background(), batch)
 		if _, err := br.Exec(); err != nil {
 			o.logger.WithError(err).Error("TimescaleDB: Couldn't write samples and update thresholds")
+			panic(err)
 		}
 
 		conn.Release()
@@ -184,7 +187,7 @@ func (o *Output) Stop() error {
 	return nil
 }
 
-func ParseThresholdName(name string) (string, string, map[string]string) {
+func parseThresholdName(name string) (string, string, map[string]string) {
 	parts := strings.SplitN(strings.TrimSuffix(name, "}"), "{", 2)
 	if len(parts) == 1 {
 		return parts[0], "", make(map[string]string, 0)
