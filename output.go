@@ -20,16 +20,12 @@ func init() {
 }
 
 func newOutput(params output.Params) (output.Output, error) {
-	config, err := getEnvConfig(params.Environment)
+	config, err := getConsolidatedConfig(params.JSONConfig, params.Environment, params.ConfigArgument)
 	if err != nil {
 		return nil, fmt.Errorf("problem parsing config: %w", err)
 	}
 
-	if config.ConcurrentWrites <= 0 {
-		return nil, fmt.Errorf("concurrent writes must be a positive number")
-	}
-
-	pconf, err := pgxpool.ParseConfig(config.URL)
+	pconf, err := pgxpool.ParseConfig(config.URL.String)
 	if err != nil {
 		return nil, fmt.Errorf("TimescaleDB: Unable to parse config: %w", err)
 	}
@@ -127,7 +123,7 @@ func (o *Output) Start() error {
 		}
 	}
 
-	pf, err := output.NewPeriodicFlusher(o.Config.PushInterval, o.commit)
+	pf, err := output.NewPeriodicFlusher(time.Duration(o.Config.PushInterval.Duration), o.commit)
 	if err != nil {
 		return err
 	}
