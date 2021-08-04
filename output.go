@@ -103,6 +103,8 @@ func (o *Output) Start() error {
 	if err != nil {
 		o.logger.WithError(err).Error("TimescaleDB: Couldn't acquire connection")
 	}
+	defer conn.Release()
+
 	_, err = conn.Exec(context.Background(), "CREATE DATABASE myk6timescaleDB")
 	if err != nil {
 		o.logger.WithError(err).Debug("TimescaleDB: Couldn't create database; most likely harmless")
@@ -132,7 +134,6 @@ func (o *Output) Start() error {
 
 	o.logger.Debug("TimescaleDB: Running!")
 	o.periodicFlusher = pf
-	conn.Release()
 
 	return nil
 }
@@ -166,13 +167,13 @@ func (o *Output) commit() {
 			logrus.WithError(err).Error("TimescaleDB: Couldn't acquire connection to write samples")
 			return
 		}
+		defer conn.Release()
 
 		br := conn.SendBatch(context.Background(), batch)
 		if _, err := br.Exec(); err != nil {
 			o.logger.WithError(err).Error("TimescaleDB: Couldn't write samples and update thresholds")
 		}
 
-		conn.Release()
 		t := time.Since(start)
 		o.logger.WithField("t", t).Debug("TimescaleDB: Batch written!")
 	}
