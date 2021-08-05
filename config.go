@@ -25,13 +25,14 @@ func newConfig() config {
 	}
 }
 
-func (c *config) apply(cfg config) {
+func (c config) apply(cfg config) config {
 	if cfg.URL.Valid {
 		c.URL = cfg.URL
 	}
 	if cfg.PushInterval.Valid {
 		c.PushInterval = cfg.PushInterval
 	}
+	return c
 }
 
 func getConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string, url string) (config, error) {
@@ -43,20 +44,20 @@ func getConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string, u
 		if err != nil {
 			return result, err
 		}
-		result.apply(jsonConf)
+		result = result.apply(jsonConf)
 	}
 
 	pgUrl, ok := env["K6_TIMESCALEDB_URL"]
 	if !ok {
 		return config{}, fmt.Errorf("invalid K6_TIMESCALEDB_URL: %q", pgUrl)
 	}
-	result.apply(config{URL: null.StringFrom(pgUrl)})
+	result = result.apply(config{URL: null.StringFrom(pgUrl)})
 
 	pushInterval, err := time.ParseDuration(env["K6_TIMESCALEDB_PUSH_INTERVAL"])
 	if err != nil {
 		return config{}, fmt.Errorf("invalid K6_TIMESCALEDB_PUSH_INTERVAL: %w", err)
 	}
-	result.apply(config{PushInterval: types.NewNullDuration(pushInterval, true)})
+	result = result.apply(config{PushInterval: types.NewNullDuration(pushInterval, true)})
 
 	return result, nil
 }
