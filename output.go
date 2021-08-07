@@ -3,7 +3,6 @@ package timescaledb
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgtype"
@@ -35,24 +34,18 @@ func newOutput(params output.Params) (output.Output, error) {
 		return nil, fmt.Errorf("TimescaleDB: Unable to create connection pool: %w", err)
 	}
 
-	thresholds := make(map[string][]*dbThreshold)
-	for name, t := range params.ScriptOptions.Thresholds {
-		for _, threshold := range t.Thresholds {
-			thresholds[name] = append(thresholds[name], &dbThreshold{id: -1, threshold: threshold})
-		}
-	}
-
-	return &Output{
-		Pool:       pool,
-		Config:     config,
-		thresholds: thresholds,
+	o := Output{
+		Pool:   pool,
+		Config: config,
 		logger: params.Logger.WithFields(logrus.Fields{
 			"output": "TimescaleDB",
 		}),
-	}, nil
+	}
+
+	return &o, nil
 }
 
-var _ output.Output = &Output{}
+var _ interface{ output.WithThresholds } = &Output{}
 
 type Output struct {
 	output.SampleBuffer
@@ -67,6 +60,21 @@ type Output struct {
 
 func (o *Output) Description() string {
 	return "TimescaleDB"
+}
+
+// SetThresholds receives the thresholds before the output is Start()-ed.
+func (o *Output) SetThresholds(thresholds map[string]stats.Thresholds) {
+	ths := make(map[string][]*dbThreshold)
+	for metric, fullTh := range thresholds {
+		for _, t := range fullTh.Thresholds {
+			ths[metric] = append(ths[metric], &dbThreshold{
+				id:        -1,
+				threshold: t,
+			})
+		}
+	}
+
+	o.thresholds = ths
 }
 
 type dbThreshold struct {
@@ -84,7 +92,6 @@ const expectedDatabaseSchema = `CREATE TABLE IF NOT EXISTS samples (
 		id serial,
 		ts timestamptz NOT NULL DEFAULT current_timestamp,
 		metric varchar(128) NOT NULL,
-		tags jsonb,
 		threshold varchar(128) NOT NULL,
 		abort_on_fail boolean DEFAULT FALSE,
 		delay_abort_eval varchar(128),
@@ -110,13 +117,14 @@ func (o *Output) Start() error {
 		o.logger.WithError(err).Debug("TimescaleDB: Couldn't create database schema; most likely harmless")
 	}
 
-	for name, t := range o.thresholds {
-		for _, threshold := range t {
-			metric, _, tags := parseThresholdName(name)
-			err = conn.QueryRow(context.Background(),
-				"INSERT INTO thresholds (metric, tags, threshold, abort_on_fail, delay_abort_eval, last_failed) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
-				metric, tags, threshold.threshold.Source, threshold.threshold.AbortOnFail, threshold.threshold.AbortGracePeriod.String(),
-				threshold.threshold.LastFailed).Scan(&threshold.id)
+	for metric, thresholds := range o.thresholds {
+		for _, t := range thresholds {
+			err = conn.QueryRow(context.Background(), `
+				INSERT INTO thresholds (metric, threshold, abort_on_fail, delay_abort_eval, last_failed)
+				VALUES ($1, $2, $3, $4, $5)
+				RETURNING id`,
+				metric, t.threshold.Source, t.threshold.AbortOnFail, t.threshold.AbortGracePeriod.String(), t.threshold.LastFailed).
+				Scan(&t.id)
 			if err != nil {
 				o.logger.WithError(err).Debug("TimescaleDB: Failed to insert threshold")
 			}
@@ -174,36 +182,11 @@ func (o *Output) commit() {
 		o.logger.WithField("t", t).Debug("TimescaleDB: Batch written!")
 	}
 }
+
 func (o *Output) Stop() error {
 	o.logger.Debug("Stopping...")
 	defer o.logger.Debug("Stopped!")
 	o.periodicFlusher.Stop()
 	o.Pool.Close()
 	return nil
-}
-
-func parseThresholdName(name string) (string, string, map[string]string) {
-	parts := strings.SplitN(strings.TrimSuffix(name, "}"), "{", 2)
-	if len(parts) == 1 {
-		return parts[0], "", make(map[string]string, 0)
-	}
-
-	kvs := strings.Split(parts[1], ",")
-	tags := make(map[string]string, len(kvs))
-	for _, kv := range kvs {
-		if kv == "" {
-			continue
-		}
-		parts := strings.SplitN(kv, ":", 2)
-
-		key := strings.TrimSpace(strings.Trim(parts[0], `"'`))
-		if len(parts) != 2 {
-			tags[key] = ""
-			continue
-		}
-
-		value := strings.TrimSpace(strings.Trim(parts[1], `"'`))
-		tags[key] = value
-	}
-	return parts[0], parts[1], tags
 }
