@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/sirupsen/logrus"
 
@@ -131,7 +129,7 @@ func (o *Output) Start() error {
 		}
 	}
 
-	pf, err := output.NewPeriodicFlusher(time.Duration(o.Config.PushInterval.Duration), o.commit)
+	pf, err := output.NewPeriodicFlusher(time.Duration(o.Config.PushInterval.Duration), o.flushMetrics)
 	if err != nil {
 		return err
 	}
@@ -142,45 +140,55 @@ func (o *Output) Start() error {
 	return nil
 }
 
-func (o *Output) commit() {
+func (o *Output) flushMetrics() {
 	sampleContainers := o.GetBufferedSamples()
+	start := time.Now()
+
+	conn, err := o.Pool.Acquire(context.Background())
+	if err != nil {
+		o.logger.WithError(err).Error("flushMetrics: Couldn't acquire connection to write samples")
+		return
+	}
+	defer conn.Release()
+
+	tx, err := conn.Begin(context.Background())
+	if err != nil {
+		o.logger.WithError(err).Error("flushMetrics: Couldn't begin transaction")
+		return
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+
 	for _, sc := range sampleContainers {
 		samples := sc.GetSamples()
-		logrus.Debug("TimescaleDB: Committing...")
-		o.logger.WithField("samples", len(samples)).Debug("TimescaleDB: Writing...")
+		o.logger.Debug("flushMetrics: Committing...")
+		o.logger.WithField("samples", len(samples)).Debug("flushMetrics: Writing...")
 
-		start := time.Now()
-		batch := &pgx.Batch{}
 		for _, s := range samples {
 			tags := s.Tags.CloneTags()
-			batch.Queue("INSERT INTO samples (ts, metric, value, tags) VALUES ($1, $2, $3, $4)",
-				s.Time, s.Metric.Name, s.Value, tags)
-		}
-
-		for _, t := range o.thresholds {
-			for _, threshold := range t {
-				batch.Queue("UPDATE thresholds SET last_failed = $1 WHERE id = $2",
-					[]interface{}{threshold.threshold.LastFailed, threshold.id},
-					[]pgtype.OID{pgtype.BoolOID, pgtype.Int4OID},
-					nil)
+			if _, err := tx.Exec(context.Background(), `INSERT INTO samples (ts, metric, value, tags) VALUES ($1, $2, $3, $4)`,
+				s.Time, s.Metric.Name, s.Value, tags); err != nil {
+				o.logger.WithError(err).Error("flushMetrics: Couldn't write samples")
+				return
 			}
 		}
-
-		conn, err := o.Pool.Acquire(context.Background())
-		if err != nil {
-			logrus.WithError(err).Error("TimescaleDB: Couldn't acquire connection to write samples")
-			return
-		}
-		defer conn.Release()
-
-		br := conn.SendBatch(context.Background(), batch)
-		if _, err := br.Exec(); err != nil {
-			o.logger.WithError(err).Error("TimescaleDB: Couldn't write samples and update thresholds")
-		}
-
-		t := time.Since(start)
-		o.logger.WithField("t", t).Debug("TimescaleDB: Batch written!")
 	}
+
+	for _, t := range o.thresholds {
+		for _, threshold := range t {
+			if _, err := tx.Exec(context.Background(), `UPDATE thresholds SET last_failed = $1 WHERE id = $2`,
+				threshold.threshold.LastFailed, threshold.id); err != nil {
+				o.logger.WithError(err).Error("flushMetrics: Couldn't update thresholds")
+				return
+			}
+		}
+	}
+
+	if err := tx.Commit(context.Background()); err != nil {
+		o.logger.WithError(err).Error("flushMetrics: Couldn't commit transaction")
+	}
+
+	t := time.Since(start)
+	o.logger.WithField("time_since_start", t).Debug("flushMetrics: Samples committed!")
 }
 
 func (o *Output) Stop() error {
