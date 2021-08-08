@@ -16,6 +16,23 @@ func init() {
 	output.RegisterExtension("timescaledb", newOutput)
 }
 
+var _ interface{ output.WithThresholds } = &Output{}
+
+type Output struct {
+	output.SampleBuffer
+	periodicFlusher *output.PeriodicFlusher
+	Pool            *pgxpool.Pool
+	Config          config
+
+	thresholds map[string][]*dbThreshold
+
+	logger logrus.FieldLogger
+}
+
+func (o *Output) Description() string {
+	return "TimescaleDB"
+}
+
 func newOutput(params output.Params) (output.Output, error) {
 	config, err := getConsolidatedConfig(params.JSONConfig, params.Environment, params.ConfigArgument)
 	if err != nil {
@@ -43,24 +60,6 @@ func newOutput(params output.Params) (output.Output, error) {
 	return &o, nil
 }
 
-var _ interface{ output.WithThresholds } = &Output{}
-
-type Output struct {
-	output.SampleBuffer
-	periodicFlusher *output.PeriodicFlusher
-	Pool            *pgxpool.Pool
-	Config          config
-
-	thresholds map[string][]*dbThreshold
-
-	logger logrus.FieldLogger
-}
-
-func (o *Output) Description() string {
-	return "TimescaleDB"
-}
-
-// SetThresholds receives the thresholds before the output is Start()-ed.
 func (o *Output) SetThresholds(thresholds map[string]stats.Thresholds) {
 	ths := make(map[string][]*dbThreshold)
 	for metric, fullTh := range thresholds {
@@ -80,7 +79,8 @@ type dbThreshold struct {
 	threshold *stats.Threshold
 }
 
-const expectedDatabaseSchema = `CREATE TABLE IF NOT EXISTS samples (
+const schema = `
+	CREATE TABLE IF NOT EXISTS samples (
 		ts timestamptz NOT NULL DEFAULT current_timestamp,
 		metric varchar(128) NOT NULL,
 		tags jsonb,
@@ -102,17 +102,17 @@ const expectedDatabaseSchema = `CREATE TABLE IF NOT EXISTS samples (
 func (o *Output) Start() error {
 	conn, err := o.Pool.Acquire(context.Background())
 	if err != nil {
-		o.logger.WithError(err).Error("TimescaleDB: Couldn't acquire connection")
+		o.logger.WithError(err).Error("Start: Couldn't acquire connection")
 	}
 	defer conn.Release()
 
 	_, err = conn.Exec(context.Background(), "CREATE DATABASE myk6timescaleDB")
 	if err != nil {
-		o.logger.WithError(err).Debug("TimescaleDB: Couldn't create database; most likely harmless")
+		o.logger.WithError(err).Debug("Start: Couldn't create database; most likely harmless")
 	}
-	_, err = conn.Exec(context.Background(), expectedDatabaseSchema)
+	_, err = conn.Exec(context.Background(), schema)
 	if err != nil {
-		o.logger.WithError(err).Debug("TimescaleDB: Couldn't create database schema; most likely harmless")
+		o.logger.WithError(err).Debug("Start: Couldn't create database schema; most likely harmless")
 	}
 
 	for metric, thresholds := range o.thresholds {
@@ -124,7 +124,7 @@ func (o *Output) Start() error {
 				metric, t.threshold.Source, t.threshold.AbortOnFail, t.threshold.AbortGracePeriod.String(), t.threshold.LastFailed).
 				Scan(&t.id)
 			if err != nil {
-				o.logger.WithError(err).Debug("TimescaleDB: Failed to insert threshold")
+				o.logger.WithError(err).Debug("Start: Failed to insert threshold")
 			}
 		}
 	}
@@ -134,7 +134,7 @@ func (o *Output) Start() error {
 		return err
 	}
 
-	o.logger.Debug("TimescaleDB: Running!")
+	o.logger.Debug("Start: Running!")
 	o.periodicFlusher = pf
 
 	return nil
