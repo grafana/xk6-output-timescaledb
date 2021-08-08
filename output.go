@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/sirupsen/logrus"
 
@@ -144,20 +145,7 @@ func (o *Output) flushMetrics() {
 	sampleContainers := o.GetBufferedSamples()
 	start := time.Now()
 
-	conn, err := o.Pool.Acquire(context.Background())
-	if err != nil {
-		o.logger.WithError(err).Error("flushMetrics: Couldn't acquire connection to write samples")
-		return
-	}
-	defer conn.Release()
-
-	tx, err := conn.Begin(context.Background())
-	if err != nil {
-		o.logger.WithError(err).Error("flushMetrics: Couldn't begin transaction")
-		return
-	}
-	defer func() { _ = tx.Rollback(context.Background()) }()
-
+	var batch pgx.Batch
 	for _, sc := range sampleContainers {
 		samples := sc.GetSamples()
 		o.logger.Debug("flushMetrics: Committing...")
@@ -165,26 +153,36 @@ func (o *Output) flushMetrics() {
 
 		for _, s := range samples {
 			tags := s.Tags.CloneTags()
-			if _, err := tx.Exec(context.Background(), `INSERT INTO samples (ts, metric, value, tags) VALUES ($1, $2, $3, $4)`,
-				s.Time, s.Metric.Name, s.Value, tags); err != nil {
-				o.logger.WithError(err).Error("flushMetrics: Couldn't write samples")
-				return
-			}
+			batch.Queue(`INSERT INTO samples (ts, metric, value, tags) VALUES ($1, $2, $3, $4)`,
+				s.Time, s.Metric.Name, s.Value, tags)
 		}
 	}
 
 	for _, t := range o.thresholds {
 		for _, threshold := range t {
-			if _, err := tx.Exec(context.Background(), `UPDATE thresholds SET last_failed = $1 WHERE id = $2`,
-				threshold.threshold.LastFailed, threshold.id); err != nil {
-				o.logger.WithError(err).Error("flushMetrics: Couldn't update thresholds")
-				return
-			}
+			batch.Queue(`UPDATE thresholds SET last_failed = $1 WHERE id = $2`,
+				threshold.threshold.LastFailed, threshold.id)
 		}
 	}
 
-	if err := tx.Commit(context.Background()); err != nil {
-		o.logger.WithError(err).Error("flushMetrics: Couldn't commit transaction")
+	conn, err := o.Pool.Acquire(context.Background())
+	if err != nil {
+		o.logger.WithError(err).Error("flushMetrics: Couldn't acquire connection to write samples")
+		return
+	}
+	defer conn.Release()
+
+	br := conn.SendBatch(context.Background(), &batch)
+	for i := 0; i < batch.Len(); i++ {
+		ct, err := br.Exec()
+		if err != nil {
+			o.logger.WithError(err).Error("flushMetrics: Couldn't exec batch")
+			return
+		}
+		if ct.RowsAffected() != 1 {
+			o.logger.WithError(err).Error("flushMetrics: Batch did not insert")
+			return
+		}
 	}
 
 	t := time.Since(start)
