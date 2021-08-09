@@ -31,7 +31,7 @@ type Output struct {
 }
 
 func (o *Output) Description() string {
-	return "TimescaleDB"
+	return fmt.Sprintf("TimescaleDB (%s)", o.Config.addr.String)
 }
 
 func newOutput(params output.Params) (output.Output, error) {
@@ -40,7 +40,7 @@ func newOutput(params output.Params) (output.Output, error) {
 		return nil, fmt.Errorf("problem parsing config: %w", err)
 	}
 
-	pconf, err := pgxpool.ParseConfig(config.URL.String)
+	pconf, err := pgxpool.ParseConfig(config.PgUrl.String)
 	if err != nil {
 		return nil, fmt.Errorf("TimescaleDB: Unable to parse config: %w", err)
 	}
@@ -107,7 +107,7 @@ func (o *Output) Start() error {
 	}
 	defer conn.Release()
 
-	_, err = conn.Exec(context.Background(), "CREATE DATABASE myk6timescaleDB")
+	_, err = conn.Exec(context.Background(), "CREATE DATABASE "+o.Config.dbName.String)
 	if err != nil {
 		o.logger.WithError(err).Debug("Start: Couldn't create database; most likely harmless")
 	}
