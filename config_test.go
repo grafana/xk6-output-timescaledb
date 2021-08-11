@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_getConsolidatedConfig_succeeds(t *testing.T) {
+func Test_getConsolidatedConfig_Succeeds(t *testing.T) {
 	actualConfig, err := getConsolidatedConfig(
 		[]byte(`{"pg_url":"postgres://user:password@localhost:5433/mydbname","push_interval":"2s"}`),
 		map[string]string{
@@ -27,7 +27,7 @@ func Test_getConsolidatedConfig_succeeds(t *testing.T) {
 	}, actualConfig)
 }
 
-func Test_getConsolidatedConfig_from_json_and_populates_config_fields_from_json_url(t *testing.T) {
+func Test_getConsolidatedConfig_FromJsonAndPopulatesConfigFieldsFromJsonUrl(t *testing.T) {
 	actualConfig, err := getConsolidatedConfig(
 		[]byte(`{"pg_url":"postgres://user:password@localhost:5433/mydbname","push_interval":"2s"}`),
 		nil,
@@ -41,7 +41,7 @@ func Test_getConsolidatedConfig_from_json_and_populates_config_fields_from_json_
 	}, actualConfig)
 }
 
-func Test_getConsolidatedConfig_from_env_variables(t *testing.T) {
+func Test_getConsolidatedConfig_FromEnvVariables(t *testing.T) {
 	actualConfig, err := getConsolidatedConfig(
 		nil,
 		map[string]string{
@@ -59,7 +59,7 @@ func Test_getConsolidatedConfig_from_env_variables(t *testing.T) {
 	}, actualConfig)
 }
 
-func Test_getConsolidatedConfig_env_variable_takes_precedence_without_config_arg(t *testing.T) {
+func Test_getConsolidatedConfig_EnvVariableTakesPrecedenceWithoutConfigArg(t *testing.T) {
 	actualConfig, err := getConsolidatedConfig(
 		[]byte(`{"pg_url":"postgres://user:password@localhost:1111/jsonDBName","push_interval":"5s","db_name":"jsonDBName"}`),
 		map[string]string{
@@ -77,7 +77,7 @@ func Test_getConsolidatedConfig_env_variable_takes_precedence_without_config_arg
 	}, actualConfig)
 }
 
-func Test_getConsolidatedConfig_config_argument_takes_precedence(t *testing.T) {
+func Test_getConsolidatedConfig_ConfigArgumentTakesPrecedence(t *testing.T) {
 	actualConfig, err := getConsolidatedConfig(
 		[]byte(`{"pg_url":"postgres://jsonUser:jsonPassword@localhost:1111/jsonDBName","push_interval":"5s","db_name":"jsonDBName"}`),
 		map[string]string{
@@ -95,7 +95,7 @@ func Test_getConsolidatedConfig_config_argument_takes_precedence(t *testing.T) {
 	}, actualConfig)
 }
 
-func Test_getConsolidatedConfig_returns_default_values(t *testing.T) {
+func Test_getConsolidatedConfig_ReturnsDefaultValues(t *testing.T) {
 	actualConfig, err := getConsolidatedConfig(nil, nil, "")
 
 	assert.NoError(t, err)
@@ -107,37 +107,37 @@ func Test_getConsolidatedConfig_returns_default_values(t *testing.T) {
 	}, actualConfig)
 }
 
-func Test_getConsolidatedConfig_returns_error_for_invalid_json(t *testing.T) {
+func Test_getConsolidatedConfig_ReturnsErrorForInvalidJson(t *testing.T) {
 	_, err := getConsolidatedConfig([]byte(`invalid`), nil, "")
 	assert.Error(t, err)
 }
 
-func Test_getConsolidatedConfig_returns_error_for_invalid_json_url(t *testing.T) {
+func Test_getConsolidatedConfig_ReturnsErrorForInvalidJsonUrl(t *testing.T) {
 	_, err := getConsolidatedConfig([]byte(`{"pg_url":"http://foo.com/?foo\nbar"}`), nil, "")
 	assert.Error(t, err)
 }
 
-func Test_getConsolidatedConfig_returns_error_for_invalid_env_url(t *testing.T) {
+func Test_getConsolidatedConfig_ReturnsErrorForInvalidEnvUrl(t *testing.T) {
 	_, err := getConsolidatedConfig(nil, map[string]string{
 		"K6_TIMESCALEDB_URL": "http://foo.com/?foo\nbar",
 	}, "")
 	assert.Error(t, err)
 }
 
-func Test_getConsolidatedConfig_returns_error_for_invalid_env_push_interval(t *testing.T) {
+func Test_getConsolidatedConfig_ReturnsErrorForInvalidEnvPushInterval(t *testing.T) {
 	_, err := getConsolidatedConfig(nil, map[string]string{
 		"K6_TIMESCALEDB_PUSH_INTERVAL": "invalid",
 	}, "")
 	assert.Error(t, err)
 }
 
-func Test_getConsolidatedConfig_returns_error_for_invalid_config_argument_url(t *testing.T) {
+func Test_getConsolidatedConfig_ReturnsErrorForInvalidConfigArgumentUrl(t *testing.T) {
 	_, err := getConsolidatedConfig(nil, nil, "http://foo.com/?foo\nbar")
 
 	assert.Error(t, err)
 }
 
-func Test_parselUrl_succeeds(t *testing.T) {
+func Test_parselUrl_Succeeds(t *testing.T) {
 	actualConfig, err := parseUrl("postgres://user:password@localhost:5433/mydbname?push_interval=2s")
 
 	assert.NoError(t, err)
@@ -149,19 +149,19 @@ func Test_parselUrl_succeeds(t *testing.T) {
 	}, actualConfig)
 }
 
-func Test_parselUrl_returns_error_for_unknown_query(t *testing.T) {
+func Test_parselUrl_ReturnsErrorForUnknownQuery(t *testing.T) {
 	_, err := parseUrl("postgres://user:password@localhost:5433/mydbname?push_interval=2s&unknown=value")
 
 	assert.Error(t, err)
 }
 
-func Test_parselUrl_returns_error_for_invalid_push_interval(t *testing.T) {
+func Test_parselUrl_ReturnsErrorForInvalidPushInterval(t *testing.T) {
 	_, err := parseUrl("postgres://user:password@localhost:5433/mydbname?push_interval=invalid")
 
 	assert.Error(t, err)
 }
 
-func Test_parselUrl_returns_error_for_invalid_input(t *testing.T) {
+func Test_parselUrl_ReturnsErrorForInvalidInput(t *testing.T) {
 	_, err := parseUrl("http://foo.com/?foo\nbar")
 
 	assert.Error(t, err)
