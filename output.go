@@ -173,6 +173,12 @@ func (o *Output) flushMetrics() {
 	defer conn.Release()
 
 	br := conn.SendBatch(context.Background(), &batch)
+	defer func() {
+		if err := br.Close(); err != nil {
+			o.logger.WithError(err).Warn("flushMetrics: Couldn't close batch results")
+		}
+	}()
+
 	for i := 0; i < batch.Len(); i++ {
 		ct, err := br.Exec()
 		if err != nil {
