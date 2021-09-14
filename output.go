@@ -91,6 +91,7 @@ const schema = `
 		id serial,
 		ts timestamptz NOT NULL DEFAULT current_timestamp,
 		metric varchar(128) NOT NULL,
+		tags jsonb,
 		threshold varchar(128) NOT NULL,
 		abort_on_fail boolean DEFAULT FALSE,
 		delay_abort_eval varchar(128),
