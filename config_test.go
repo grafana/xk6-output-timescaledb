@@ -12,15 +12,15 @@ import (
 
 func Test_getConsolidatedConfig_Succeeds(t *testing.T) {
 	actualConfig, err := getConsolidatedConfig(
-		[]byte(`{"pg_url":"postgres://user:password@localhost:5433/mydbname","push_interval":"2s"}`),
+		[]byte(`{"url":"postgres://user:password@localhost:5433/mydbname","pushInterval":"2s"}`),
 		map[string]string{
 			"K6_TIMESCALEDB_URL":           "postgres://user:password@localhost:5433/mydbname",
 			"K6_TIMESCALEDB_PUSH_INTERVAL": "2s",
 		},
-		"postgres://user:password@localhost:5433/mydbname?push_interval=2s")
+		"postgres://user:password@localhost:5433/mydbname?pushInterval=2s")
 	assert.NoError(t, err)
 	assert.Equal(t, config{
-		PgUrl:        null.StringFrom("postgres://user:password@localhost:5433/mydbname"),
+		URL:          null.StringFrom("postgres://user:password@localhost:5433/mydbname"),
 		PushInterval: types.NullDurationFrom(2 * time.Second),
 		addr:         null.StringFrom("postgres://localhost:5433"),
 		dbName:       null.StringFrom("mydbname"),
@@ -29,12 +29,12 @@ func Test_getConsolidatedConfig_Succeeds(t *testing.T) {
 
 func Test_getConsolidatedConfig_FromJsonAndPopulatesConfigFieldsFromJsonUrl(t *testing.T) {
 	actualConfig, err := getConsolidatedConfig(
-		[]byte(`{"pg_url":"postgres://user:password@localhost:5433/mydbname","push_interval":"2s"}`),
+		[]byte(`{"url":"postgres://user:password@localhost:5433/mydbname","pushInterval":"2s"}`),
 		nil,
 		"")
 	assert.NoError(t, err)
 	assert.Equal(t, config{
-		PgUrl:        null.StringFrom("postgres://user:password@localhost:5433/mydbname"),
+		URL:          null.StringFrom("postgres://user:password@localhost:5433/mydbname"),
 		PushInterval: types.NullDurationFrom(2 * time.Second),
 		addr:         null.StringFrom("postgres://localhost:5433"),
 		dbName:       null.StringFrom("mydbname"),
@@ -52,7 +52,7 @@ func Test_getConsolidatedConfig_FromEnvVariables(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, config{
-		PgUrl:        null.StringFrom("postgres://user:password@localhost:5433/mydbname"),
+		URL:          null.StringFrom("postgres://user:password@localhost:5433/mydbname"),
 		PushInterval: types.NullDurationFrom(2 * time.Second),
 		addr:         null.StringFrom("postgres://localhost:5433"),
 		dbName:       null.StringFrom("mydbname"),
@@ -61,7 +61,7 @@ func Test_getConsolidatedConfig_FromEnvVariables(t *testing.T) {
 
 func Test_getConsolidatedConfig_EnvVariableTakesPrecedenceWithoutConfigArg(t *testing.T) {
 	actualConfig, err := getConsolidatedConfig(
-		[]byte(`{"pg_url":"postgres://user:password@localhost:1111/jsonDBName","push_interval":"5s","db_name":"jsonDBName"}`),
+		[]byte(`{"url":"postgres://user:password@localhost:1111/jsonDBName","pushInterval":"5s","db_name":"jsonDBName"}`),
 		map[string]string{
 			"K6_TIMESCALEDB_URL":           "postgres://user:password@localhost:5433/mydbname",
 			"K6_TIMESCALEDB_PUSH_INTERVAL": "2s",
@@ -70,7 +70,7 @@ func Test_getConsolidatedConfig_EnvVariableTakesPrecedenceWithoutConfigArg(t *te
 
 	assert.NoError(t, err)
 	assert.Equal(t, config{
-		PgUrl:        null.StringFrom("postgres://user:password@localhost:5433/mydbname"),
+		URL:          null.StringFrom("postgres://user:password@localhost:5433/mydbname"),
 		PushInterval: types.NullDurationFrom(2 * time.Second),
 		addr:         null.StringFrom("postgres://localhost:5433"),
 		dbName:       null.StringFrom("mydbname"),
@@ -79,16 +79,16 @@ func Test_getConsolidatedConfig_EnvVariableTakesPrecedenceWithoutConfigArg(t *te
 
 func Test_getConsolidatedConfig_ConfigArgumentTakesPrecedence(t *testing.T) {
 	actualConfig, err := getConsolidatedConfig(
-		[]byte(`{"pg_url":"postgres://jsonUser:jsonPassword@localhost:1111/jsonDBName","push_interval":"5s","db_name":"jsonDBName"}`),
+		[]byte(`{"url":"postgres://jsonUser:jsonPassword@localhost:1111/jsonDBName","pushInterval":"5s","db_name":"jsonDBName"}`),
 		map[string]string{
 			"K6_TIMESCALEDB_URL":           "postgres://user:password@localhost:5433/mydbname",
 			"K6_TIMESCALEDB_PUSH_INTERVAL": "2s",
 		},
-		"postgres://confUser:confPassword@localhost:2222/confDBName?push_interval=8s")
+		"postgres://confUser:confPassword@localhost:2222/confDBName?pushInterval=8s")
 
 	assert.NoError(t, err)
 	assert.Equal(t, config{
-		PgUrl:        null.StringFrom("postgres://confUser:confPassword@localhost:2222/confDBName"),
+		URL:          null.StringFrom("postgres://confUser:confPassword@localhost:2222/confDBName"),
 		PushInterval: types.NullDurationFrom(time.Duration(8000000000)),
 		addr:         null.StringFrom("postgres://localhost:2222"),
 		dbName:       null.StringFrom("confDBName"),
@@ -100,7 +100,7 @@ func Test_getConsolidatedConfig_ReturnsDefaultValues(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, config{
-		PgUrl:        null.NewString("postgresql://localhost/myk6timescaleDB", false),
+		URL:          null.NewString("postgresql://localhost/myk6timescaleDB", false),
 		PushInterval: types.NewNullDuration(time.Duration(1000000000), false),
 		addr:         null.NewString("postgresql://localhost", false),
 		dbName:       null.NewString("myk6timescaleDB", false),
@@ -113,7 +113,7 @@ func Test_getConsolidatedConfig_ReturnsErrorForInvalidJson(t *testing.T) {
 }
 
 func Test_getConsolidatedConfig_ReturnsErrorForInvalidJsonUrl(t *testing.T) {
-	_, err := getConsolidatedConfig([]byte(`{"pg_url":"http://foo.com/?foo\nbar"}`), nil, "")
+	_, err := getConsolidatedConfig([]byte(`{"url":"http://foo.com/?foo\nbar"}`), nil, "")
 	assert.Error(t, err)
 }
 
@@ -138,11 +138,11 @@ func Test_getConsolidatedConfig_ReturnsErrorForInvalidConfigArgumentUrl(t *testi
 }
 
 func Test_parselUrl_Succeeds(t *testing.T) {
-	actualConfig, err := parseUrl("postgres://user:password@localhost:5433/mydbname?push_interval=2s")
+	actualConfig, err := parseUrl("postgres://user:password@localhost:5433/mydbname?pushInterval=2s")
 
 	assert.NoError(t, err)
 	assert.Equal(t, config{
-		PgUrl:        null.StringFrom("postgres://user:password@localhost:5433/mydbname"),
+		URL:          null.StringFrom("postgres://user:password@localhost:5433/mydbname"),
 		PushInterval: types.NullDurationFrom(2 * time.Second),
 		addr:         null.StringFrom("postgres://localhost:5433"),
 		dbName:       null.StringFrom("mydbname"),
@@ -150,13 +150,13 @@ func Test_parselUrl_Succeeds(t *testing.T) {
 }
 
 func Test_parselUrl_ReturnsErrorForUnknownQuery(t *testing.T) {
-	_, err := parseUrl("postgres://user:password@localhost:5433/mydbname?push_interval=2s&unknown=value")
+	_, err := parseUrl("postgres://user:password@localhost:5433/mydbname?pushInterval=2s&unknown=value")
 
 	assert.Error(t, err)
 }
 
 func Test_parselUrl_ReturnsErrorForInvalidPushInterval(t *testing.T) {
-	_, err := parseUrl("postgres://user:password@localhost:5433/mydbname?push_interval=invalid")
+	_, err := parseUrl("postgres://user:password@localhost:5433/mydbname?pushInterval=invalid")
 
 	assert.Error(t, err)
 }

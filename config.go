@@ -16,15 +16,15 @@ type config struct {
 	// Connection URL in the form specified in the libpq docs,
 	// see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING):
 	// postgresql://[user[:password]@][netloc][:port][,...][/dbname][?param1=value1&...]
-	PgUrl        null.String        `json:"pg_url"`
-	PushInterval types.NullDuration `json:"push_interval"`
+	URL          null.String        `json:"url"`
+	PushInterval types.NullDuration `json:"pushInterval"`
 	dbName       null.String
 	addr         null.String
 }
 
 func newConfig() config {
 	return config{
-		PgUrl:        null.NewString("postgresql://localhost/myk6timescaleDB", false),
+		URL:          null.NewString("postgresql://localhost/myk6timescaleDB", false),
 		PushInterval: types.NewNullDuration(time.Second, false),
 		dbName:       null.NewString("myk6timescaleDB", false),
 		addr:         null.NewString("postgresql://localhost", false),
@@ -32,8 +32,8 @@ func newConfig() config {
 }
 
 func (c config) apply(modifiedConf config) config {
-	if modifiedConf.PgUrl.Valid {
-		c.PgUrl = modifiedConf.PgUrl
+	if modifiedConf.URL.Valid {
+		c.URL = modifiedConf.URL
 	}
 	if modifiedConf.PushInterval.Valid {
 		c.PushInterval = modifiedConf.PushInterval
@@ -57,19 +57,19 @@ func getConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string, c
 		}
 		consolidatedConf = consolidatedConf.apply(rawJsonConf)
 
-		jsonUrlConf, err := parseUrl(consolidatedConf.PgUrl.String)
+		jsonURLConf, err := parseUrl(consolidatedConf.URL.String)
 		if err != nil {
 			return config{}, fmt.Errorf("problem parsing url provided in json %q: %w",
-				consolidatedConf.PgUrl.String, err)
+				consolidatedConf.URL.String, err)
 		}
-		consolidatedConf = consolidatedConf.apply(jsonUrlConf)
+		consolidatedConf = consolidatedConf.apply(jsonURLConf)
 	}
 
-	envPgUrl, ok := env["K6_TIMESCALEDB_URL"]
+	envURL, ok := env["K6_TIMESCALEDB_URL"]
 	if ok {
-		envUrlConf, err := parseUrl(envPgUrl)
+		envUrlConf, err := parseUrl(envURL)
 		if err != nil {
-			return config{}, fmt.Errorf("invalid K6_TIMESCALEDB_URL %q: %w", envPgUrl, err)
+			return config{}, fmt.Errorf("invalid K6_TIMESCALEDB_URL %q: %w", envURL, err)
 		}
 		consolidatedConf = consolidatedConf.apply(envUrlConf)
 	}
@@ -100,7 +100,7 @@ func parseUrl(text string) (config, error) {
 		return config{}, err
 	}
 	var parsedConf config
-	parsedConf.PgUrl = null.StringFrom(u.Scheme + "://" + u.User.String() + "@" + u.Host + u.Path)
+	parsedConf.URL = null.StringFrom(u.Scheme + "://" + u.User.String() + "@" + u.Host + u.Path)
 
 	if u.Host != "" {
 		parsedConf.addr = null.StringFrom(u.Scheme + "://" + u.Host)
@@ -110,7 +110,7 @@ func parseUrl(text string) (config, error) {
 	}
 	for k, vs := range u.Query() {
 		switch k {
-		case "push_interval":
+		case "pushInterval":
 			if err := parsedConf.PushInterval.UnmarshalText([]byte(vs[0])); err != nil {
 				return config{}, err
 			}

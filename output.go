@@ -40,7 +40,7 @@ func newOutput(params output.Params) (output.Output, error) {
 		return nil, fmt.Errorf("problem parsing config: %w", err)
 	}
 
-	pconf, err := pgxpool.ParseConfig(config.PgUrl.String)
+	pconf, err := pgxpool.ParseConfig(config.URL.String)
 	if err != nil {
 		return nil, fmt.Errorf("TimescaleDB: Unable to parse config: %w", err)
 	}
