@@ -46,4 +46,4 @@ services:
     environment:
       - K6_OUT=timescaledb=postgresql://k6:k6@timescaledb:5432/k6
     volumes:
-      - ./samples:/scripts
+      - ./scripts:/scripts
