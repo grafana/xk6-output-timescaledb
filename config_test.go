@@ -138,7 +138,7 @@ func Test_getConsolidatedConfig_ReturnsErrorForInvalidConfigArgumentUrl(t *testi
 }
 
 func Test_parselUrl_Succeeds(t *testing.T) {
-	actualConfig, err := parseUrl("postgres://user:password@localhost:5433/mydbname?pushInterval=2s")
+	actualConfig, err := parseURL("postgres://user:password@localhost:5433/mydbname?pushInterval=2s")
 
 	assert.NoError(t, err)
 	assert.Equal(t, config{
@@ -150,19 +150,19 @@ func Test_parselUrl_Succeeds(t *testing.T) {
 }
 
 func Test_parselUrl_ReturnsErrorForUnknownQuery(t *testing.T) {
-	_, err := parseUrl("postgres://user:password@localhost:5433/mydbname?pushInterval=2s&unknown=value")
+	_, err := parseURL("postgres://user:password@localhost:5433/mydbname?pushInterval=2s&unknown=value")
 
 	assert.Error(t, err)
 }
 
 func Test_parselUrl_ReturnsErrorForInvalidPushInterval(t *testing.T) {
-	_, err := parseUrl("postgres://user:password@localhost:5433/mydbname?pushInterval=invalid")
+	_, err := parseURL("postgres://user:password@localhost:5433/mydbname?pushInterval=invalid")
 
 	assert.Error(t, err)
 }
 
 func Test_parselUrl_ReturnsErrorForInvalidInput(t *testing.T) {
-	_, err := parseUrl("http://foo.com/?foo\nbar")
+	_, err := parseURL("http://foo.com/?foo\nbar")
 
 	assert.Error(t, err)
 }
