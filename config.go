@@ -65,15 +65,6 @@ func getConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string, c
 		consolidatedConf = consolidatedConf.apply(jsonURLConf)
 	}
 
-	envURL, ok := env["K6_TIMESCALEDB_URL"]
-	if ok {
-		envURLConf, err := parseURL(envURL)
-		if err != nil {
-			return config{}, fmt.Errorf("invalid K6_TIMESCALEDB_URL %q: %w", envURL, err)
-		}
-		consolidatedConf = consolidatedConf.apply(envURLConf)
-	}
-
 	envPushInterval, ok := env["K6_TIMESCALEDB_PUSH_INTERVAL"]
 	if ok {
 		pushInterval, err := time.ParseDuration(envPushInterval)
@@ -100,23 +91,13 @@ func parseURL(text string) (config, error) {
 		return config{}, err
 	}
 	var parsedConf config
-	parsedConf.URL = null.StringFrom(u.Scheme + "://" + u.User.String() + "@" + u.Host + u.Path)
+	parsedConf.URL = null.StringFrom(text)
 
 	if u.Host != "" {
 		parsedConf.addr = null.StringFrom(u.Scheme + "://" + u.Host)
 	}
 	if dbName := strings.TrimPrefix(u.Path, "/"); dbName != "" {
 		parsedConf.dbName = null.StringFrom(dbName)
-	}
-	for k, vs := range u.Query() {
-		switch k {
-		case "pushInterval":
-			if err := parsedConf.PushInterval.UnmarshalText([]byte(vs[0])); err != nil {
-				return config{}, err
-			}
-		default:
-			return config{}, fmt.Errorf("unknown query parameter: %s", k)
-		}
 	}
 	return parsedConf, err
 }
