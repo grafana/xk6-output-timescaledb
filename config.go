@@ -51,27 +51,18 @@ func getConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string, c
 	consolidatedConf := newConfig()
 
 	if jsonRawConf != nil {
-		var rawJsonConf config
-		if err := json.Unmarshal(jsonRawConf, &rawJsonConf); err != nil {
-			return config{}, fmt.Errorf("problem unmarshalling json: %w", err)
+		var jsonConf config
+		if err := json.Unmarshal(jsonRawConf, &jsonConf); err != nil {
+			return config{}, fmt.Errorf("problem unmarshalling JSON: %w", err)
 		}
-		consolidatedConf = consolidatedConf.apply(rawJsonConf)
+		consolidatedConf = consolidatedConf.apply(jsonConf)
 
-		jsonURLConf, err := parseUrl(consolidatedConf.URL.String)
+		jsonURLConf, err := parseURL(consolidatedConf.URL.String)
 		if err != nil {
-			return config{}, fmt.Errorf("problem parsing url provided in json %q: %w",
+			return config{}, fmt.Errorf("problem parsing URL provided in JSON %q: %w",
 				consolidatedConf.URL.String, err)
 		}
 		consolidatedConf = consolidatedConf.apply(jsonURLConf)
-	}
-
-	envURL, ok := env["K6_TIMESCALEDB_URL"]
-	if ok {
-		envUrlConf, err := parseUrl(envURL)
-		if err != nil {
-			return config{}, fmt.Errorf("invalid K6_TIMESCALEDB_URL %q: %w", envURL, err)
-		}
-		consolidatedConf = consolidatedConf.apply(envUrlConf)
 	}
 
 	envPushInterval, ok := env["K6_TIMESCALEDB_PUSH_INTERVAL"]
@@ -84,7 +75,7 @@ func getConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string, c
 	}
 
 	if confArg != "" {
-		parsedConfArg, err := parseUrl(confArg)
+		parsedConfArg, err := parseURL(confArg)
 		if err != nil {
 			return config{}, fmt.Errorf("invalid config argument %q: %w", confArg, err)
 		}
@@ -94,29 +85,19 @@ func getConsolidatedConfig(jsonRawConf json.RawMessage, env map[string]string, c
 	return consolidatedConf, nil
 }
 
-func parseUrl(text string) (config, error) {
+func parseURL(text string) (config, error) {
 	u, err := url.Parse(text)
 	if err != nil {
 		return config{}, err
 	}
 	var parsedConf config
-	parsedConf.URL = null.StringFrom(u.Scheme + "://" + u.User.String() + "@" + u.Host + u.Path)
+	parsedConf.URL = null.StringFrom(text)
 
 	if u.Host != "" {
 		parsedConf.addr = null.StringFrom(u.Scheme + "://" + u.Host)
 	}
 	if dbName := strings.TrimPrefix(u.Path, "/"); dbName != "" {
 		parsedConf.dbName = null.StringFrom(dbName)
-	}
-	for k, vs := range u.Query() {
-		switch k {
-		case "pushInterval":
-			if err := parsedConf.PushInterval.UnmarshalText([]byte(vs[0])); err != nil {
-				return config{}, err
-			}
-		default:
-			return config{}, fmt.Errorf("unknown query parameter: %s", k)
-		}
 	}
 	return parsedConf, err
 }
