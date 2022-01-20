@@ -28,16 +28,16 @@ This [Dockerfile](./Dockerfile) builds a docker image with the k6 binary.
 # Configuration
 
 
-First, find the [postgres connection string](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING) of the TimescaleDB instance.
+First, find the [Postgres connection string](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING) of the TimescaleDB instance.
 
-To run a k6 test and send the k6 metrics to TimescaleDB, use the `k6 run` command and set the [k6 output option](https://k6.io/docs/using-k6/options/#results-output) as `timescaledb=YOUR_POSTGRES_CONNECTION_STRING`. For example:
+To run the test and send the k6 metrics to TimescaleDB, use the `k6 run` command setting the [k6 output option](https://k6.io/docs/using-k6/options/#results-output) as `timescaledb=YOUR_POSTGRES_CONNECTION_STRING`. For example:
 
 
 ```bash
 k6 run -o timescaledb=postgresql://k6:k6@timescaledb:5432/k6 script.js
 ```
 
-or use an environment variable:
+or set an environment variable:
 
 ```bash
 K6_OUT=timescaledb=postgresql://k6:k6@timescaledb:5432/k6 k6 run script.js
@@ -45,12 +45,9 @@ K6_OUT=timescaledb=postgresql://k6:k6@timescaledb:5432/k6 k6 run script.js
 
 ## Options
 
-The `xk6-output-timescaledb` extension supports the additional options:
+The `xk6-output-timescaledb` extension supports this additional option:
 
-|                      |                                                                                                   |
-| ------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `K6_TIMESCALEDB_PUSH_INTERVAL`          | Define how often metrics are sent to TimescaleDB.  The default value is `1s` (1 second). |
-
+- `K6_TIMESCALEDB_PUSH_INTERVAL`: to define how often metrics are sent to TimescaleDB.  The default value is `1s` (1 second).
 
 # Docker-compose
 
@@ -66,14 +63,13 @@ Clone the repo to get get started and follow these steps:
 	```shell
 	docker-compose up -d
 	```
-4. You can now run the k6 script and send metrics to the TimescaleDB container started on the previous step.
+4. Run the k6 script and send metrics to the TimescaleDB container started on the previous step. You must [set the `testid` tag](https://k6.io/docs/using-k6/tags-and-groups/#test-wide-tags) with a unique identifier to segment the metrics into discrete test runs for the [Grafana dashboards](#dashboards).
 	```shell
 	docker-compose run k6 -<scripts/http_2.js --tag testid=<someid>
 	```
 
-	> Note the difference [running k6 tests with Docker](https://k6.io/docs/getting-started/running-k6/).
+	> Note that the [docker-compose command to run k6 tests](https://k6.io/docs/getting-started/running-k6/) might differ depending your OS.
 
-	You'll also need to [tag your test runs](https://k6.io/docs/using-k6/tags-and-groups/#test-wide-tags) with a `testid` (the value can be whatever you want to use as a unique identifier for test runs like a date string, numeric ID etc.). This tag is what enables the pre-built Grafana dashboards to segment the result data into discrete test runs.
 
 
 5. Visit http://localhost:3000 to view results in Grafana.
