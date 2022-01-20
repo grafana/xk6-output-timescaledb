@@ -36,6 +36,7 @@ services:
       - ./grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml
       - ./samples/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
       - ./samples/grafana_dashboard_timescaledb.json:/var/lib/grafana/dashboards/grafana_dashboard_timescaledb.json
+      - ./samples/dashboard-tests.json:/var/lib/grafana/dashboards/dashboard-tests.json
 
   k6:
     build: .
