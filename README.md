@@ -53,17 +53,23 @@ The `xk6-output-timescaledb` extension supports this additional option:
 
 This repo includes a [docker-compose.yml](./docker-compose.yml) file that starts timescaledb, grafana and k6. This is just a quick to setup to show the usage, for real use case you might want to deploy outside of docker, use volumes and probably update versions.
 
-Clone the repo to get get started and follow these steps: 
+Clone the repo to get started and follow these steps: 
 
-1. Build the k6 binary following the [installation instructions above](#install).
+1. Put your k6 scripts in the `scripts` directory or use the `http_2.js` example.
 
-2. Put your k6 scripts in the `scripts` directory.
-
-3. Start the docker compose environments.
+3. Start the docker compose environment.
 	```shell
 	docker-compose up -d
 	```
-4. Run the k6 script and send metrics to the TimescaleDB container started on the previous step. You must [set the `testid` tag](https://k6.io/docs/using-k6/tags-and-groups/#test-wide-tags) with a unique identifier to segment the metrics into discrete test runs for the [Grafana dashboards](#dashboards).
+
+	```shell
+	# Output
+	Creating xk6-output-timescaledb_grafana_1     ... done
+	Creating xk6-output-timescaledb_k6_1          ... done
+	Creating xk6-output-timescaledb_timescaledb_1 ... done
+	```
+
+4. Use the k6 Docker image to run the k6 script and send metrics to the TimescaleDB container started on the previous step. You must [set the `testid` tag](https://k6.io/docs/using-k6/tags-and-groups/#test-wide-tags) with a unique identifier to segment the metrics into discrete test runs for the [Grafana dashboards](#dashboards).
 	```shell
 	docker-compose run k6 -<scripts/http_2.js --tag testid=<someid>
 	```
