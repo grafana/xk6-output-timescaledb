@@ -49,9 +49,9 @@ The `xk6-output-timescaledb` extension supports this additional option:
 
 - `K6_TIMESCALEDB_PUSH_INTERVAL`: to define how often metrics are sent to TimescaleDB.  The default value is `1s` (1 second).
 
-# Docker-compose
+# Docker Compose
 
-This repo includes a [docker-compose.yml](./docker-compose.yml) file that starts timescaledb, grafana and k6. This is just a quick to setup to show the usage, for real use case you might want to deploy outside of docker, use volumes and probably update versions.
+This repo includes a [docker-compose.yml](./docker-compose.yml) file that starts TimescaleDB, Grafana, and a custom build of k6 having the `xk6-output-timescaledb` extension. This is just a quick to setup to show the usage, for real use case you might want to deploy outside of docker, use volumes and probably update versions.
 
 Clone the repo to get started and follow these steps: 
 
@@ -69,16 +69,14 @@ Clone the repo to get started and follow these steps:
 	Creating xk6-output-timescaledb_timescaledb_1 ... done
 	```
 
-4. Use the k6 Docker image to run the k6 script and send metrics to the TimescaleDB container started on the previous step. You must [set the `testid` tag](https://k6.io/docs/using-k6/tags-and-groups/#test-wide-tags) with a unique identifier to segment the metrics into discrete test runs for the [Grafana dashboards](#dashboards).
+4. Use the k6 Docker image to run the k6 script and send metrics to the TimescaleDB container started on the previous step. The [http_2.js](./scripts/http_2.js) script sets a [test-wide tag](https://k6.io/docs/using-k6/tags-and-groups/#test-wide-tags) (`testid`) with a unique identifier to segment the metrics into discrete test runs for the [Grafana dashboards](#dashboards).
 	```shell
-	docker-compose run k6 -<scripts/http_2.js --tag testid=<someid>
+	docker-compose run --rm k6 -<scripts/http_2.js
 	```
 
 	> Note that the [docker-compose command to run k6 tests](https://k6.io/docs/getting-started/running-k6/) might differ depending your OS.
 
-
-
-5. Visit http://localhost:3000 to view results in Grafana.
+5. Visit http://localhost:3000/ to view results in Grafana.
 
 ## Dashboards
 
