@@ -7,10 +7,6 @@ export const options = {
   thresholds: {
     'http_reqs{expected_response:true}': ['rate>10'],
   },
-  // Adding a tag to distinguish discrete test runs
-  tags: {
-    testid: `testid-${Date.now()}`,
-  }
 };
 
 export default function () {
