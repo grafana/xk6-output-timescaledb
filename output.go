@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/sirupsen/logrus"
 
+	"go.k6.io/k6/metrics"
 	"go.k6.io/k6/output"
-	"go.k6.io/k6/stats"
 )
 
 func init() {
@@ -61,7 +61,7 @@ func newOutput(params output.Params) (output.Output, error) {
 	return &o, nil
 }
 
-func (o *Output) SetThresholds(thresholds map[string]stats.Thresholds) {
+func (o *Output) SetThresholds(thresholds map[string]metrics.Thresholds) {
 	ths := make(map[string][]*dbThreshold)
 	for metric, fullTh := range thresholds {
 		for _, t := range fullTh.Thresholds {
@@ -77,7 +77,7 @@ func (o *Output) SetThresholds(thresholds map[string]stats.Thresholds) {
 
 type dbThreshold struct {
 	id        int
-	threshold *stats.Threshold
+	threshold *metrics.Threshold
 }
 
 const schema = `
