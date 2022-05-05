@@ -6,6 +6,6 @@ require (
 	github.com/jackc/pgx/v4 v4.13.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.1
-	go.k6.io/k6 v0.37.1-0.20220414112720-57e994242f10
+	go.k6.io/k6 v0.38.0
 	gopkg.in/guregu/null.v3 v3.3.0
 )
