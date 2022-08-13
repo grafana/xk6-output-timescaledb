@@ -3,7 +3,7 @@
 #
 # This script simply executes a provided JavaScript test using
 # the local environment established with the `docker-compose`.
-# 
+#
 # Each execution is provided a unique tag to differentiate
 # discrete test runs within the Grafana dashboard.
 #
