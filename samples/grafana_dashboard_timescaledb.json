@@ -22,7 +22,7 @@
   "fiscalYearStartMonth": 0,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1660371623705,
+  "iteration": 1660378136642,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -1820,8 +1820,8 @@
         "allValue": "'<all>'",
         "current": {
           "selected": false,
-          "text": "http_2-1660369994",
-          "value": "http_2-1660369994"
+          "text": "http_2-1660378082",
+          "value": "http_2-1660378082"
         },
         "datasource": "mytimescaledb",
         "definition": "",
@@ -1846,8 +1846,8 @@
     ]
   },
   "time": {
-    "from": "2022-08-13T05:53:17.000Z",
-    "to": "2022-08-13T05:53:26.000Z"
+    "from": "2022-08-13T08:08:04.000Z",
+    "to": "2022-08-13T08:08:14.000Z"
   },
   "timepicker": {
     "refresh_intervals": [
