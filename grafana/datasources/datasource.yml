@@ -6,6 +6,7 @@ datasources:
     url: timescaledb:5432
     database: k6
     user: k6
+    isDefault: true
     secureJsonData:
       password: "k6"
     jsonData:
@@ -15,3 +16,4 @@ datasources:
       connMaxLifetime: 14400  # Grafana v5.4+
       postgresVersion: 903    # 903=9.3, 904=9.4, 905=9.5, 906=9.6, 1000=10
       timescaledb: true
+      
