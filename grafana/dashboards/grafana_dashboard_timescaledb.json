@@ -22,7 +22,7 @@
   "fiscalYearStartMonth": 0,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1660378136642,
+  "iteration": 1660593465010,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -1820,8 +1820,8 @@
         "allValue": "'<all>'",
         "current": {
           "selected": false,
-          "text": "http_2-1660378082",
-          "value": "http_2-1660378082"
+          "text": "All",
+          "value": "$__all"
         },
         "datasource": "mytimescaledb",
         "definition": "",
@@ -1834,7 +1834,7 @@
         "name": "testid",
         "options": [],
         "query": "SELECT DISTINCT tags->>'testid' AS \"id\" FROM samples WHERE metric = 'vus';",
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
@@ -1846,8 +1846,8 @@
     ]
   },
   "time": {
-    "from": "2022-08-13T08:08:04.000Z",
-    "to": "2022-08-13T08:08:14.000Z"
+    "from": "now-1h",
+    "to": "now"
   },
   "timepicker": {
     "refresh_intervals": [
