@@ -1114,7 +1114,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  CASE WHEN \"tags\" = '{}' THEN \"metric\" ELSE \"metric\" || '{' || (SELECT key || ':' || value FROM jsonb_each_text(\"tags\")) || '}' END,\n  \"threshold\",\n  CASE WHEN \"last_failed\" THEN 0 ELSE 1 END AS pass_fail\nFROM\n  thresholds\nWHERE\n  $__timeFilter(ts)\nORDER BY 3 ASC\nLIMIT 100",
+          "rawSql": "SELECT\n  CASE WHEN \"tags\" IS NULL THEN \"metric\" ELSE \"metric\" || '{' || (SELECT key || ':' || value FROM jsonb_each_text(\"tags\")) || '}' END,\n  \"threshold\",\n  CASE WHEN \"last_failed\" THEN 0 ELSE 1 END AS pass_fail\nFROM\n  thresholds\nWHERE\n  $__timeFilter(ts)\nORDER BY 3 ASC\nLIMIT 100",
           "refId": "A",
           "select": [
             [
