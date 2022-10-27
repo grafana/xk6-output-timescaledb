@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/bin/sh
 
 #
 # This script simply executes a provided JavaScript test using
