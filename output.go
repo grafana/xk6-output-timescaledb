@@ -153,7 +153,7 @@ func (o *Output) flushMetrics() {
 		o.logger.WithField("samples", len(samples)).Debug("flushMetrics: Writing...")
 
 		for _, s := range samples {
-			tags := s.Tags.CloneTags()
+			tags := s.Tags.Map()
 			batch.Queue(`INSERT INTO samples (ts, metric, value, tags) VALUES ($1, $2, $3, $4)`,
 				s.Time, s.Metric.Name, s.Value, tags)
 		}
