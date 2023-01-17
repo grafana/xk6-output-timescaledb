@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 
 	"go.k6.io/k6/metrics"
@@ -45,7 +45,7 @@ func newOutput(params output.Params) (output.Output, error) {
 		return nil, fmt.Errorf("TimescaleDB: Unable to parse config: %w", err)
 	}
 
-	pool, err := pgxpool.ConnectConfig(context.Background(), pconf)
+	pool, err := pgxpool.NewWithConfig(context.Background(), pconf)
 	if err != nil {
 		return nil, fmt.Errorf("TimescaleDB: Unable to create connection pool: %w", err)
 	}
@@ -146,6 +146,11 @@ func (o *Output) flushMetrics() {
 	sampleContainers := o.GetBufferedSamples()
 	start := time.Now()
 
+	o.logger.Debug("flushMetrics: Collecting...")
+	o.logger.WithField("sample-containers", len(sampleContainers)).Debug("flushMetrics: Collecting...")
+
+	rows := [][]interface{}{}
+
 	var batch pgx.Batch
 	for _, sc := range sampleContainers {
 		samples := sc.GetSamples()
@@ -154,8 +159,8 @@ func (o *Output) flushMetrics() {
 
 		for _, s := range samples {
 			tags := s.Tags.Map()
-			batch.Queue(`INSERT INTO samples (ts, metric, value, tags) VALUES ($1, $2, $3, $4)`,
-				s.Time, s.Metric.Name, s.Value, tags)
+			row := []interface{}{s.Time, s.Metric.Name, s.Value, tags}
+			rows = append(rows, row)
 		}
 	}
 
@@ -166,19 +171,20 @@ func (o *Output) flushMetrics() {
 		}
 	}
 
-	conn, err := o.Pool.Acquire(context.Background())
-	if err != nil {
-		o.logger.WithError(err).Error("flushMetrics: Couldn't acquire connection to write samples")
-		return
-	}
-	defer conn.Release()
-
-	br := conn.SendBatch(context.Background(), &batch)
+	br := o.Pool.SendBatch(context.Background(), &batch)
 	defer func() {
 		if err := br.Close(); err != nil {
 			o.logger.WithError(err).Warn("flushMetrics: Couldn't close batch results")
 		}
 	}()
+
+	_, err := o.Pool.CopyFrom(context.Background(),
+		pgx.Identifier{"samples"},
+		[]string{"ts", "metric", "value", "tags"},
+		pgx.CopyFromRows(rows))
+	if err != nil {
+		o.logger.WithError(err).Warn("copyMetrics: Couldn't commit samples")
+	}
 
 	for i := 0; i < batch.Len(); i++ {
 		ct, err := br.Exec()
