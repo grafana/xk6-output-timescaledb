@@ -146,15 +146,11 @@ func (o *Output) flushMetrics() {
 	sampleContainers := o.GetBufferedSamples()
 	start := time.Now()
 
-	o.logger.Debug("flushMetrics: Collecting...")
 	o.logger.WithField("sample-containers", len(sampleContainers)).Debug("flushMetrics: Collecting...")
 
 	rows := [][]interface{}{}
-
-	var batch pgx.Batch
 	for _, sc := range sampleContainers {
 		samples := sc.GetSamples()
-		o.logger.Debug("flushMetrics: Committing...")
 		o.logger.WithField("samples", len(samples)).Debug("flushMetrics: Writing...")
 
 		for _, s := range samples {
@@ -164,6 +160,7 @@ func (o *Output) flushMetrics() {
 		}
 	}
 
+	var batch pgx.Batch
 	for _, t := range o.thresholds {
 		for _, threshold := range t {
 			batch.Queue(`UPDATE thresholds SET last_failed = $1 WHERE id = $2`,
