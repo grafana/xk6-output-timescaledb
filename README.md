@@ -55,7 +55,7 @@ This repo includes a [docker-compose.yml](./docker-compose.yml) file that starts
 
 Clone the repo to get started and follow these steps: 
 
-1. Put your k6 scripts in the `scripts` directory or use the `http_2.js` example.
+1. Put your k6 scripts in the `samples` directory or use the `http_2.js` example.
 
 3. Start the docker compose environment.
 	```shell
@@ -71,11 +71,11 @@ Clone the repo to get started and follow these steps:
 
 4. Use the k6 Docker image to run the k6 script and send metrics to the TimescaleDB container started on the previous step. You must [set the `testid` tag](https://k6.io/docs/using-k6/tags-and-groups/#test-wide-tags) with a unique identifier to segment the metrics into discrete test runs for the [Grafana dashboards](#dashboards).
     ```shell
-    docker-compose run --rm -T k6 run -<scripts/http_2.js --tag testid=<SOME-ID>
+    docker-compose run --rm -T k6 run -<samples/http_2.js --tag testid=<SOME-ID>
     ```
    For convenience, the `docker-run.sh` can be used to simply:
     ```shell
-    ./docker-run.sh scripts/http_2.js
+    ./docker-run.sh samples/http_2.js
     ```
 
 	> Note that the [docker-compose command to run k6 tests](https://k6.io/docs/getting-started/running-k6/) might differ depending your OS.
