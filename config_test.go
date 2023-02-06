@@ -11,6 +11,7 @@ import (
 )
 
 func Test_getConsolidatedConfig_Succeeds(t *testing.T) {
+	t.Parallel()
 	actualConfig, err := getConsolidatedConfig(
 		[]byte(`{"url":"postgresql://user:password@localhost:5433/mydbname","pushInterval":"2s"}`),
 		map[string]string{
@@ -27,6 +28,7 @@ func Test_getConsolidatedConfig_Succeeds(t *testing.T) {
 }
 
 func Test_getConsolidatedConfig_FromJsonAndPopulatesConfigFieldsFromJsonUrl(t *testing.T) {
+	t.Parallel()
 	actualConfig, err := getConsolidatedConfig(
 		[]byte(`{"url":"postgresql://user:password@localhost:5433/mydbname","pushInterval":"2s"}`),
 		nil,
@@ -41,6 +43,7 @@ func Test_getConsolidatedConfig_FromJsonAndPopulatesConfigFieldsFromJsonUrl(t *t
 }
 
 func Test_getConsolidatedConfig_FromEnvVariables(t *testing.T) {
+	t.Parallel()
 	actualConfig, err := getConsolidatedConfig(
 		nil,
 		map[string]string{
@@ -58,6 +61,7 @@ func Test_getConsolidatedConfig_FromEnvVariables(t *testing.T) {
 }
 
 func Test_getConsolidatedConfig_EnvVariableTakesPrecedenceWithoutConfigArg(t *testing.T) {
+	t.Parallel()
 	actualConfig, err := getConsolidatedConfig(
 		[]byte(`{"url":"postgresql://user:password@localhost:1111/jsonDBName","pushInterval":"5s","db_name":"jsonDBName"}`),
 		map[string]string{
@@ -75,6 +79,7 @@ func Test_getConsolidatedConfig_EnvVariableTakesPrecedenceWithoutConfigArg(t *te
 }
 
 func Test_getConsolidatedConfig_ConfigArgumentTakesPrecedence(t *testing.T) {
+	t.Parallel()
 	actualConfig, err := getConsolidatedConfig(
 		[]byte(`{"url":"postgresql://jsonUser:jsonPassword@localhost:1111/jsonDBName","pushInterval":"5s","db_name":"jsonDBName"}`),
 		map[string]string{
@@ -92,6 +97,7 @@ func Test_getConsolidatedConfig_ConfigArgumentTakesPrecedence(t *testing.T) {
 }
 
 func Test_getConsolidatedConfig_ReturnsDefaultValues(t *testing.T) {
+	t.Parallel()
 	actualConfig, err := getConsolidatedConfig(nil, nil, "")
 
 	assert.NoError(t, err)
@@ -104,16 +110,19 @@ func Test_getConsolidatedConfig_ReturnsDefaultValues(t *testing.T) {
 }
 
 func Test_getConsolidatedConfig_ReturnsErrorForInvalidJson(t *testing.T) {
+	t.Parallel()
 	_, err := getConsolidatedConfig([]byte(`invalid`), nil, "")
 	assert.Error(t, err)
 }
 
 func Test_getConsolidatedConfig_ReturnsErrorForInvalidJsonUrl(t *testing.T) {
+	t.Parallel()
 	_, err := getConsolidatedConfig([]byte(`{"url":"http://foo.com/?foo\nbar"}`), nil, "")
 	assert.Error(t, err)
 }
 
 func Test_getConsolidatedConfig_ReturnsErrorForInvalidEnvPushInterval(t *testing.T) {
+	t.Parallel()
 	_, err := getConsolidatedConfig(nil, map[string]string{
 		"K6_TIMESCALEDB_PUSH_INTERVAL": "invalid",
 	}, "")
@@ -121,12 +130,14 @@ func Test_getConsolidatedConfig_ReturnsErrorForInvalidEnvPushInterval(t *testing
 }
 
 func Test_getConsolidatedConfig_ReturnsErrorForInvalidConfigArgumentUrl(t *testing.T) {
+	t.Parallel()
 	_, err := getConsolidatedConfig(nil, nil, "http://foo.com/?foo\nbar")
 
 	assert.Error(t, err)
 }
 
 func Test_parselUrl_Succeeds(t *testing.T) {
+	t.Parallel()
 	actualConfig, err := parseURL("postgresql://user:password@localhost:5433/mydbname")
 
 	assert.NoError(t, err)
@@ -138,6 +149,7 @@ func Test_parselUrl_Succeeds(t *testing.T) {
 }
 
 func Test_parselUrl_ReturnsErrorForInvalidInput(t *testing.T) {
+	t.Parallel()
 	_, err := parseURL("http://foo.com/?foo\nbar")
 
 	assert.Error(t, err)

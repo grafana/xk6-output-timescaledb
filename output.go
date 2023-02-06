@@ -1,3 +1,4 @@
+// Package timescaledb provides the xk6-output-timescaledb extension
 package timescaledb
 
 import (
@@ -19,6 +20,7 @@ func init() {
 
 var _ interface{ output.WithThresholds } = &Output{}
 
+// Output is a k6 output that sends metrics to a TimescaleDB instance.
 type Output struct {
 	output.SampleBuffer
 	periodicFlusher *output.PeriodicFlusher
@@ -30,17 +32,18 @@ type Output struct {
 	logger logrus.FieldLogger
 }
 
+// Description returns a short human-readable description of the output.
 func (o *Output) Description() string {
 	return fmt.Sprintf("TimescaleDB (%s)", o.Config.addr.String)
 }
 
 func newOutput(params output.Params) (output.Output, error) {
-	config, err := getConsolidatedConfig(params.JSONConfig, params.Environment, params.ConfigArgument)
+	configs, err := getConsolidatedConfig(params.JSONConfig, params.Environment, params.ConfigArgument)
 	if err != nil {
 		return nil, fmt.Errorf("problem parsing config: %w", err)
 	}
 
-	pconf, err := pgxpool.ParseConfig(config.URL.String)
+	pconf, err := pgxpool.ParseConfig(configs.URL.String)
 	if err != nil {
 		return nil, fmt.Errorf("TimescaleDB: Unable to parse config: %w", err)
 	}
@@ -52,7 +55,7 @@ func newOutput(params output.Params) (output.Output, error) {
 
 	o := Output{
 		Pool:   pool,
-		Config: config,
+		Config: configs,
 		logger: params.Logger.WithFields(logrus.Fields{
 			"output": "TimescaleDB",
 		}),
@@ -61,6 +64,7 @@ func newOutput(params output.Params) (output.Output, error) {
 	return &o, nil
 }
 
+// SetThresholds receives threshold data to be output.
 func (o *Output) SetThresholds(thresholds map[string]metrics.Thresholds) {
 	ths := make(map[string][]*dbThreshold)
 	for metric, fullTh := range thresholds {
@@ -101,6 +105,7 @@ const schema = `
 	CREATE INDEX IF NOT EXISTS idx_samples_ts ON samples (ts DESC);
 	CREATE INDEX IF NOT EXISTS idx_thresholds_ts ON thresholds (ts DESC);`
 
+// Start initializes the output.
 func (o *Output) Start() error {
 	conn, err := o.Pool.Acquire(context.Background())
 	if err != nil {
@@ -199,6 +204,7 @@ func (o *Output) flushMetrics() {
 	o.logger.WithField("time_since_start", t).Debug("flushMetrics: Samples committed!")
 }
 
+// Stop stops the output.
 func (o *Output) Stop() error {
 	o.logger.Debug("Stopping...")
 	defer o.logger.Debug("Stopped!")
