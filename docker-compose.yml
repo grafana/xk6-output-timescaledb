@@ -7,7 +7,7 @@ networks:
 
 services:
   timescaledb:
-    image: timescale/timescaledb:latest-pg12
+    image: timescale/timescaledb:latest-pg15
     command: postgres -c shared_preload_libraries=timescaledb
     networks:
       - k6
@@ -22,7 +22,7 @@ services:
       - POSTGRES_PASSWORD=k6
 
   grafana:
-    image: grafana/grafana:8.2.6
+    image: grafana/grafana:10.0.2
     networks:
       - grafana
       - timescaledb
