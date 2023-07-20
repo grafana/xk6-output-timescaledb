@@ -25,7 +25,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.18.x
+          go-version: 1.20.x
       - name: Retrieve golangci-lint version
         run: |
           echo "Version=$(head -n 1 "${GITHUB_WORKSPACE}/.golangci.yml" | tr -d '# ')" >> $GITHUB_OUTPUT
@@ -40,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [1.18.x, 1.19.x, 1.20.x, tip]
+        go-version: [1.19.x, 1.20.x, tip]
         platform: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
     steps:
@@ -70,7 +70,7 @@ jobs:
         run: |
           which go
           go version
-          go test -race -timeout 800s ./...
+          go test -race -timeout 60s ./...
 
   test-build:
     runs-on: ubuntu-latest
@@ -80,15 +80,16 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19.x
+          go-version: 1.20.x
       - name: Check build
         run: |
             go version
             pwd && ls -l
 
-            go install go.k6.io/xk6/cmd/xk6@master
+            go install go.k6.io/xk6/cmd/xk6@latest
+            MODULE_NAME=$(go list -m)
 
-            GOPRIVATE="go.k6.io/k6" xk6 build \
+            xk6 build \
               --output ./k6ext \
-              --with github.com/grafana/xk6-output-timescaledb="."
+              --with $MODULE_NAME="."
             ./k6ext version
