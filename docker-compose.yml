@@ -22,7 +22,7 @@ services:
       - POSTGRES_PASSWORD=k6
 
   grafana:
-    image: grafana/grafana:10.0.2
+    image: grafana/grafana:10.4.19@sha256:a9043254ba16fb10945cc27333963dfd08eccbb43b51f1222d831cc564e3a1f4
     networks:
       - grafana
       - timescaledb
